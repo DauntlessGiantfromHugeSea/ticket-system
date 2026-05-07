@@ -111,6 +111,31 @@ class TicketSystemTests(TestCase):
         self.assertEqual(resp.status_code, 403)
         self.assertEqual(WorkLog.objects.count(), 0)
 
+    def test_admin_can_close_ticket(self):
+        t = Ticket.objects.create(title="X", description="x", created_by=self.user)
+        self.login("admin", "pw-admin-123!")
+        resp = self.client.post(reverse("ticket_close", args=[t.pk]))
+        self.assertEqual(resp.status_code, 302)
+        t.refresh_from_db()
+        self.assertEqual(t.status, "closed")
+
+    def test_user_cannot_close_ticket(self):
+        t = Ticket.objects.create(title="X", description="x", created_by=self.user)
+        self.login("alice")
+        resp = self.client.post(reverse("ticket_close", args=[t.pk]))
+        self.assertEqual(resp.status_code, 403)
+
+    def test_archive_only_closed(self):
+        Ticket.objects.create(title="Open1", description="x", created_by=self.user, status="open")
+        Ticket.objects.create(title="Closed1", description="x", created_by=self.user, status="closed")
+        self.login("alice")
+        resp = self.client.get(reverse("ticket_list"))
+        self.assertContains(resp, "Open1")
+        self.assertNotContains(resp, "Closed1")
+        resp = self.client.get(reverse("ticket_archive"))
+        self.assertContains(resp, "Closed1")
+        self.assertNotContains(resp, "Open1")
+
     def test_comments(self):
         t = Ticket.objects.create(title="X", description="x", created_by=self.user)
         self.login("alice")

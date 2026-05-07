@@ -38,12 +38,28 @@ def _notify(subject, body, recipients):
     threading.Thread(target=_send, daemon=True).start()
 
 
+ARCHIVE_STATUSES = ("resolved", "closed")
+
+
 @login_required
 def ticket_list(request):
-    qs = Ticket.objects.select_related("created_by", "assigned_to")
+    """Aktive Tickets (ohne Archiv)."""
+    qs = Ticket.objects.select_related("created_by", "assigned_to").exclude(status__in=ARCHIVE_STATUSES)
     if not request.user.is_staff:
         qs = qs.filter(created_by=request.user)
+    return _render_ticket_list(request, qs, archive=False)
 
+
+@login_required
+def ticket_archive(request):
+    """Geschlossene/gelöste Tickets."""
+    qs = Ticket.objects.select_related("created_by", "assigned_to").filter(status__in=ARCHIVE_STATUSES)
+    if not request.user.is_staff:
+        qs = qs.filter(created_by=request.user)
+    return _render_ticket_list(request, qs, archive=True)
+
+
+def _render_ticket_list(request, qs, archive):
     status = request.GET.get("status")
     priority = request.GET.get("priority")
     category = request.GET.get("category")
@@ -62,6 +78,7 @@ def ticket_list(request):
         "tickets/ticket_list.html",
         {
             "tickets": qs,
+            "archive": archive,
             "status_choices": Ticket.Status.choices,
             "priority_choices": Ticket.Priority.choices,
             "category_choices": Ticket.Category.choices,
@@ -73,6 +90,34 @@ def ticket_list(request):
             },
         },
     )
+
+
+@login_required
+def ticket_close(request, pk):
+    if not request.user.is_staff or request.method != "POST":
+        return HttpResponseForbidden()
+    ticket = get_object_or_404(Ticket, pk=pk)
+    ticket.status = Ticket.Status.CLOSED
+    ticket.save(update_fields=["status", "updated_at"])
+    if ticket.created_by.email:
+        _notify(
+            f"[Ticket #{ticket.pk}] Geschlossen",
+            f"Dein Ticket '{ticket.title}' wurde geschlossen.",
+            [ticket.created_by.email],
+        )
+    messages.success(request, f"Ticket #{ticket.pk} wurde geschlossen und ins Archiv verschoben.")
+    return redirect("ticket_list")
+
+
+@login_required
+def ticket_reopen(request, pk):
+    if not request.user.is_staff or request.method != "POST":
+        return HttpResponseForbidden()
+    ticket = get_object_or_404(Ticket, pk=pk)
+    ticket.status = Ticket.Status.OPEN
+    ticket.save(update_fields=["status", "updated_at"])
+    messages.success(request, f"Ticket #{ticket.pk} wurde wieder geöffnet.")
+    return redirect(ticket.get_absolute_url())
 
 
 @login_required

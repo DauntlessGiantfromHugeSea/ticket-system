@@ -3,8 +3,12 @@
 {% block content %}
 <div class="card">
   <div style="display:flex; justify-content:space-between; align-items:center;">
-    <h1 style="margin:0">{% if user.is_staff %}Alle Tickets{% else %}Meine Tickets{% endif %}</h1>
-    <a class="btn" href="{% url 'ticket_create' %}">+ Neues Ticket</a>
+    <h1 style="margin:0">
+      {% if archive %}🗄 Archiv
+      {% elif user.is_staff %}Alle offenen Tickets
+      {% else %}Meine Tickets{% endif %}
+    </h1>
+    {% if not archive %}<a class="btn" href="{% url 'ticket_create' %}">+ Neues Ticket</a>{% endif %}
   </div>
   <form method="get" style="margin-top:16px">
     <div class="row">
