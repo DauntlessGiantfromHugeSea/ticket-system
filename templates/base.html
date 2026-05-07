@@ -3,70 +3,170 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{% block title %}IT-Ticketsystem{% endblock %}</title>
+<title>{% block title %}IT-Ticketsystem · FB Engineering{% endblock %}</title>
+<link rel="icon" href="https://fb-eng.de/wp-content/uploads/2024/10/FBE_green.png">
 <style>
-  :root { --bg:#f5f6f8; --card:#fff; --border:#e3e6eb; --primary:#2563eb; --text:#1f2937; --muted:#6b7280; }
+  :root {
+    --brand: #92c57a;
+    --brand-dark: #6fa959;
+    --brand-soft: #eaf5e2;
+    --bg: #f5f7f5;
+    --card: #ffffff;
+    --border: #e1e6e1;
+    --text: #1f2937;
+    --muted: #6b7280;
+    --danger: #dc2626;
+  }
   * { box-sizing: border-box; }
-  body { margin:0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background:var(--bg); color:var(--text); }
-  header { background:var(--primary); color:#fff; padding:12px 24px; display:flex; align-items:center; justify-content:space-between; }
-  header a { color:#fff; text-decoration:none; margin-right:16px; }
-  header .right { font-size:14px; }
-  main { max-width: 1100px; margin: 24px auto; padding: 0 16px; }
-  .card { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:20px; margin-bottom:20px; }
-  h1 { margin-top:0; }
-  table { width:100%; border-collapse: collapse; }
-  th, td { text-align:left; padding:10px 8px; border-bottom: 1px solid var(--border); }
-  th { background:#fafbfc; font-size:13px; color:var(--muted); text-transform: uppercase; letter-spacing:.04em; }
-  .btn { display:inline-block; background:var(--primary); color:#fff; padding:8px 14px; border:none; border-radius:6px; cursor:pointer; text-decoration:none; font-size:14px; }
-  .btn.secondary { background:#fff; color:var(--text); border:1px solid var(--border); }
-  .btn.danger { background:#dc2626; }
-  input, select, textarea { width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:6px; font-size:14px; font-family:inherit; }
-  label { display:block; font-size:13px; color:var(--muted); margin-bottom:4px; margin-top:10px; }
+  html, body { margin:0; height:100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    background: var(--bg); color: var(--text); font-size: 14px;
+  }
+  a { color: var(--brand-dark); }
+
+  /* === Layout: Sidebar + Content (Freshdesk-Style) === */
+  .layout { display:flex; min-height:100vh; }
+  .sidebar {
+    width: 230px; background:#fff; border-right:1px solid var(--border);
+    display:flex; flex-direction:column;
+  }
+  .sidebar .logo { padding: 18px 20px; border-bottom:1px solid var(--border); }
+  .sidebar .logo img { max-width: 100%; height:auto; }
+  .sidebar nav { padding: 10px 0; flex:1; }
+  .sidebar nav a {
+    display:flex; align-items:center; gap:10px;
+    padding: 10px 20px; color:var(--text); text-decoration:none;
+    font-weight:500; border-left: 3px solid transparent;
+  }
+  .sidebar nav a:hover { background: var(--brand-soft); }
+  .sidebar nav a.active { background: var(--brand-soft); border-left-color: var(--brand); color: var(--brand-dark); }
+  .sidebar .userbox {
+    padding: 14px 20px; border-top:1px solid var(--border); font-size:12px; color:var(--muted);
+  }
+  .sidebar .userbox strong { color: var(--text); display:block; }
+  .sidebar .userbox form { margin-top:6px; }
+  .sidebar .userbox button {
+    background:none; border:none; color:var(--brand-dark); padding:0; cursor:pointer;
+    text-decoration:underline; font:inherit;
+  }
+
+  .content { flex:1; padding: 24px 32px; max-width: 1400px; }
+
+  /* === Cards === */
+  .card { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:20px; margin-bottom:18px; }
+  .card h1, .card h2, .card h3 { margin-top:0; }
+  h1 { font-size: 22px; }
+  h3 { font-size: 16px; }
+
+  /* === Forms === */
+  input, select, textarea {
+    width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:6px;
+    font-size:14px; font-family:inherit; background:#fff;
+  }
+  input:focus, select:focus, textarea:focus { outline:none; border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft); }
+  label { display:block; font-size:12px; color:var(--muted); margin-bottom:4px; margin-top:10px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; }
   .row { display:flex; gap:12px; flex-wrap: wrap; }
   .row > * { flex:1; min-width: 140px; }
-  .badge { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; font-weight:600; }
+
+  /* === Buttons === */
+  .btn {
+    display:inline-block; background:var(--brand); color:#fff; padding:9px 16px;
+    border:none; border-radius:6px; cursor:pointer; text-decoration:none; font-size:14px; font-weight:500;
+  }
+  .btn:hover { background:var(--brand-dark); }
+  .btn.secondary { background:#fff; color:var(--text); border:1px solid var(--border); }
+  .btn.secondary:hover { background:#f9faf9; }
+  .btn.danger { background:var(--danger); }
+  .btn.danger:hover { background:#b91c1c; }
+
+  /* === Tables === */
+  table { width:100%; border-collapse: collapse; }
+  th, td { text-align:left; padding:10px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { background:#fafbfa; font-size:11px; color:var(--muted); text-transform: uppercase; letter-spacing:.04em; font-weight:600; }
+  tbody tr:hover { background: #fafbfa; }
+
+  /* === Badges === */
+  .badge { display:inline-block; padding:3px 10px; border-radius:999px; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.03em; }
   .b-open { background:#dbeafe; color:#1e40af; }
   .b-in_progress { background:#fef3c7; color:#92400e; }
-  .b-resolved { background:#dcfce7; color:#166534; }
+  .b-resolved { background:var(--brand-soft); color:var(--brand-dark); }
   .b-closed { background:#e5e7eb; color:#374151; }
   .b-low { background:#e5e7eb; color:#374151; }
   .b-medium { background:#dbeafe; color:#1e40af; }
   .b-high { background:#fed7aa; color:#9a3412; }
   .b-critical { background:#fecaca; color:#991b1b; }
+
+  /* === Alerts / Messages === */
   .messages { margin-bottom:16px; }
-  .alert { padding:10px 14px; border-radius:6px; margin-bottom:8px; background:#dcfce7; color:#166534; }
-  .alert.error { background:#fecaca; color:#991b1b; }
+  .alert { padding:10px 14px; border-radius:6px; margin-bottom:8px; background:var(--brand-soft); color:var(--brand-dark); border:1px solid #c8e3b3; }
+  .alert.error { background:#fecaca; color:#991b1b; border-color:#f5a4a4; }
+
+  /* === Helpers === */
   .muted { color: var(--muted); font-size: 13px; }
-  .comment { background:#fafbfc; padding:10px 14px; border-radius:6px; margin-bottom:8px; }
-  .comment .meta { font-size:12px; color:var(--muted); margin-bottom:4px; }
-  .errorlist { color:#991b1b; list-style:none; padding:0; margin:4px 0; font-size:13px; }
+  .errorlist { color:var(--danger); list-style:none; padding:0; margin:4px 0; font-size:13px; }
+  hr.sep { border:none; border-top:1px solid var(--border); margin:14px 0; }
+
+  /* === Ticket-Detail-Layout === */
+  .ticket-grid { display:grid; grid-template-columns: 1fr 320px; gap: 20px; }
+  @media (max-width: 900px) { .ticket-grid { grid-template-columns: 1fr; } }
+  .ticket-meta-row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:6px; }
+
+  /* Avatar */
+  .avatar {
+    width:36px; height:36px; border-radius:50%; background:var(--brand);
+    color:#fff; display:inline-flex; align-items:center; justify-content:center;
+    font-weight:600; font-size:14px; flex-shrink:0;
+  }
+  .avatar.lg { width:48px; height:48px; font-size:18px; }
+
+  /* Conversation (Kommentare) */
+  .conv-item { display:flex; gap:12px; padding:14px 0; border-bottom:1px solid var(--border); }
+  .conv-item:last-child { border-bottom:none; }
+  .conv-body { flex:1; }
+  .conv-meta { font-size:12px; color:var(--muted); margin-bottom:4px; }
+  .conv-meta strong { color: var(--text); font-size:13px; }
+  .conv-text { white-space:pre-wrap; }
+  .conv-item.staff { background:var(--brand-soft); margin: 0 -20px; padding: 14px 20px; border-radius:6px; border-bottom:none; }
+
+  /* Creator-Box (oben prominent) */
+  .creator-box {
+    display:flex; align-items:center; gap:12px;
+    padding:12px 14px; background:var(--brand-soft); border-radius:8px; margin-bottom:14px;
+  }
+  .creator-box .info { font-size:13px; }
+  .creator-box .info strong { font-size:15px; }
 </style>
 </head>
 <body>
-<header>
-  <div>
-    <a href="{% url 'ticket_list' %}"><strong>IT-Ticketsystem</strong></a>
-    {% if user.is_authenticated %}
-      <a href="{% url 'ticket_list' %}">Tickets</a>
-      <a href="{% url 'ticket_create' %}">Neues Ticket</a>
-      {% if user.is_staff %}<a href="/admin/">Admin</a>{% endif %}
-    {% endif %}
-  </div>
-  <div class="right">
-    {% if user.is_authenticated %}
-      Angemeldet als <strong>{{ user.username }}</strong>{% if user.is_staff %} (Admin){% endif %}
-      &nbsp;·&nbsp;
-      <form action="{% url 'logout' %}" method="post" style="display:inline">{% csrf_token %}
-        <button type="submit" style="background:none;border:none;color:#fff;cursor:pointer;text-decoration:underline">Abmelden</button>
+<div class="layout">
+  {% if user.is_authenticated %}
+  <aside class="sidebar">
+    <div class="logo">
+      <img src="https://fb-eng.de/wp-content/uploads/2024/10/FBE_green.png" alt="FB Engineering">
+    </div>
+    <nav>
+      <a href="{% url 'ticket_list' %}" {% if request.resolver_match.url_name == 'ticket_list' %}class="active"{% endif %}>📋 Tickets</a>
+      <a href="{% url 'ticket_create' %}" {% if request.resolver_match.url_name == 'ticket_create' %}class="active"{% endif %}>➕ Neues Ticket</a>
+      <a href="{% url 'ticket_archive' %}" {% if request.resolver_match.url_name == 'ticket_archive' %}class="active"{% endif %}>🗄 Archiv</a>
+      {% if user.is_staff %}<a href="/admin/">⚙ Admin-Panel</a>{% endif %}
+    </nav>
+    <div class="userbox">
+      Angemeldet als
+      <strong>{{ user.username }}{% if user.is_staff %} · Admin{% endif %}</strong>
+      <form action="{% url 'logout' %}" method="post">{% csrf_token %}
+        <button type="submit">Abmelden</button>
       </form>
-    {% endif %}
-  </div>
-</header>
-<main>
-  {% if messages %}<div class="messages">
-    {% for m in messages %}<div class="alert {% if m.tags == 'error' %}error{% endif %}">{{ m }}</div>{% endfor %}
-  </div>{% endif %}
-  {% block content %}{% endblock %}
-</main>
+    </div>
+  </aside>
+  {% endif %}
+
+  <main class="content">
+    {% if messages %}<div class="messages">
+      {% for m in messages %}<div class="alert {% if m.tags == 'error' %}error{% endif %}">{{ m }}</div>{% endfor %}
+    </div>{% endif %}
+    {% block content %}{% endblock %}
+  </main>
+</div>
 </body>
 </html>

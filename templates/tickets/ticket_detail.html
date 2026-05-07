@@ -1,86 +1,209 @@
 {% extends "base.html" %}
-{% block title %}Ticket #{{ ticket.pk }}{% endblock %}
+{% block title %}Ticket #{{ ticket.pk }} – {{ ticket.title }}{% endblock %}
 {% block content %}
-<div class="card">
-  <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px;">
-    <div>
-      <div class="muted">Ticket #{{ ticket.pk }}</div>
-      <h1 style="margin:4px 0">{{ ticket.title }}</h1>
-      <div>
-        <span class="badge b-{{ ticket.status }}">{{ ticket.get_status_display }}</span>
-        <span class="badge b-{{ ticket.priority }}">Priorität: {{ ticket.get_priority_display }}</span>
-        <span class="badge b-low">{{ ticket.get_category_display }}</span>
+
+<div style="margin-bottom:14px;">
+  <a href="{% url 'ticket_list' %}" class="muted" style="text-decoration:none;">← Zurück zur Übersicht</a>
+</div>
+
+<div class="ticket-grid">
+
+  <!-- ============ HAUPTSPALTE ============ -->
+  <div>
+
+    <!-- Ersteller-Box (prominent oben) -->
+    <div class="creator-box">
+      <div class="avatar lg">{{ ticket.created_by.username|slice:":1"|upper }}</div>
+      <div class="info">
+        Ticket eingereicht von
+        <strong>
+          {% if ticket.created_by.get_full_name %}{{ ticket.created_by.get_full_name }} ({{ ticket.created_by.username }})
+          {% else %}{{ ticket.created_by.username }}{% endif %}
+        </strong>
+        <div class="muted">
+          {% if ticket.created_by.email %}{{ ticket.created_by.email }} · {% endif %}
+          {{ ticket.created_at|date:"d.m.Y H:i" }} Uhr
+        </div>
       </div>
     </div>
-    <a class="btn secondary" href="{% url 'ticket_list' %}">← Zurück</a>
+
+    <!-- Ticket-Header -->
+    <div class="card">
+      <div class="muted" style="font-size:12px;">TICKET #{{ ticket.pk }}</div>
+      <h1 style="margin:4px 0 8px;">{{ ticket.title }}</h1>
+      <div class="ticket-meta-row">
+        <span class="badge b-{{ ticket.status }}">{{ ticket.get_status_display }}</span>
+        <span class="badge b-{{ ticket.priority }}">{{ ticket.get_priority_display }}</span>
+        <span class="muted">{{ ticket.get_category_display }}</span>
+      </div>
+      <hr class="sep">
+      <div style="white-space:pre-wrap; line-height:1.6;">{{ ticket.description }}</div>
+
+      {% if ticket.attachments.all %}
+      <hr class="sep">
+      <div style="font-size:12px; color:var(--muted); font-weight:600; text-transform:uppercase; margin-bottom:8px;">Anhänge</div>
+      <ul style="margin:0; padding-left:20px;">
+        {% for a in ticket.attachments.all %}
+          <li><a href="{{ a.file.url }}" target="_blank">{{ a.file.name|cut:"tickets/"|cut:a.ticket_id|cut:"/" }}</a>
+          <span class="muted">– {{ a.uploaded_by.username|default:"?" }}, {{ a.uploaded_at|date:"d.m.Y H:i" }}</span></li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </div>
+
+    <!-- Conversation / Kommentare -->
+    <div class="card">
+      <h3>💬 Verlauf</h3>
+      {% for c in ticket.comments.all %}
+        <div class="conv-item {% if c.author.is_staff %}staff{% endif %}">
+          <div class="avatar">{{ c.author.username|slice:":1"|upper }}</div>
+          <div class="conv-body">
+            <div class="conv-meta">
+              <strong>{{ c.author.username|default:"?" }}</strong>
+              {% if c.author.is_staff %}<span class="badge b-resolved" style="margin-left:6px;">Admin</span>{% endif %}
+              · {{ c.created_at|date:"d.m.Y H:i" }}
+            </div>
+            <div class="conv-text">{{ c.body }}</div>
+          </div>
+        </div>
+      {% empty %}
+        <p class="muted">Noch keine Kommentare.</p>
+      {% endfor %}
+
+      {% if not ticket.is_closed or user.is_staff %}
+      <hr class="sep">
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="comment">
+        {{ comment_form.body }}
+        {% if comment_form.body.errors %}<ul class="errorlist">{% for e in comment_form.body.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+        <div style="margin-top:10px;"><button class="btn" type="submit">Antwort senden</button></div>
+      </form>
+      {% endif %}
+    </div>
+
+    <!-- Anhang hochladen -->
+    <div class="card">
+      <h3>📎 Anhang hinzufügen</h3>
+      <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="attach">
+        {{ attachment_form.file }}
+        <div style="margin-top:10px;"><button class="btn secondary" type="submit">Hochladen</button></div>
+      </form>
+    </div>
+
+    <!-- Aufwandserfassung (Admin-only) -->
+    {% if worklog_form %}
+    <div class="card">
+      <h3>🛠 Aufwandserfassung (Admin)</h3>
+
+      {% if worklogs %}
+        <table>
+          <thead>
+            <tr><th>Datum</th><th>Bearbeiter</th><th>km</th><th>Std.</th><th>Material</th><th>Tätigkeit</th><th></th></tr>
+          </thead>
+          <tbody>
+            {% for w in worklogs %}
+            <tr>
+              <td>{{ w.date|date:"d.m.Y" }}</td>
+              <td>{{ w.performed_by.username|default:"–" }}</td>
+              <td>{{ w.travel_km }}</td>
+              <td>{{ w.hours }}</td>
+              <td style="white-space:pre-wrap">{{ w.material|default:"–" }}</td>
+              <td style="white-space:pre-wrap">{{ w.description|default:"–" }}</td>
+              <td>
+                <form method="post" style="display:inline" onsubmit="return confirm('Aufwand wirklich löschen?')">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="worklog_delete">
+                  <input type="hidden" name="worklog_id" value="{{ w.pk }}">
+                  <button class="btn danger" type="submit" style="padding:4px 8px; font-size:12px;">×</button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot>
+            <tr style="font-weight:600; background:var(--brand-soft);">
+              <td colspan="2">Summe</td>
+              <td>{{ worklog_totals.km|default:0 }} km</td>
+              <td>{{ worklog_totals.hours|default:0 }} h</td>
+              <td colspan="3"></td>
+            </tr>
+          </tfoot>
+        </table>
+      {% else %}
+        <p class="muted">Noch kein Aufwand erfasst.</p>
+      {% endif %}
+
+      <details style="margin-top:14px;">
+        <summary style="cursor:pointer; font-weight:600; color:var(--brand-dark);">+ Aufwand hinzufügen</summary>
+        <form method="post" style="margin-top:12px;">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="worklog_add">
+          <div class="row">
+            <div><label>{{ worklog_form.date.label }}</label>{{ worklog_form.date }}</div>
+            <div><label>{{ worklog_form.travel_km.label }}</label>{{ worklog_form.travel_km }}</div>
+            <div><label>{{ worklog_form.hours.label }}</label>{{ worklog_form.hours }}</div>
+          </div>
+          <label>{{ worklog_form.material.label }}</label>
+          {{ worklog_form.material }}
+          <div class="muted">{{ worklog_form.material.help_text }}</div>
+          <label>{{ worklog_form.description.label }}</label>
+          {{ worklog_form.description }}
+          <div style="margin-top:12px;"><button class="btn" type="submit">Aufwand speichern</button></div>
+        </form>
+      </details>
+    </div>
+    {% endif %}
+
   </div>
-  <p class="muted" style="margin-top:14px">
-    Erstellt von <strong>{{ ticket.created_by.username }}</strong> am {{ ticket.created_at|date:"d.m.Y H:i" }}
-    {% if ticket.assigned_to %} · zugewiesen an <strong>{{ ticket.assigned_to.username }}</strong>{% endif %}
-  </p>
-  <hr style="border:none; border-top:1px solid var(--border); margin:14px 0">
-  <div style="white-space:pre-wrap">{{ ticket.description }}</div>
-</div>
 
-{% if ticket.attachments.all %}
-<div class="card">
-  <h3 style="margin-top:0">Anhänge</h3>
-  <ul>
-    {% for a in ticket.attachments.all %}
-      <li><a href="{{ a.file.url }}" target="_blank">{{ a.file.name|cut:"tickets/"|cut:a.ticket_id|cut:"/" }}</a>
-      <span class="muted">– {{ a.uploaded_by.username|default:"?" }}, {{ a.uploaded_at|date:"d.m.Y H:i" }}</span></li>
-    {% endfor %}
-  </ul>
-</div>
-{% endif %}
+  <!-- ============ SIDEBAR ============ -->
+  <aside>
+    {% if admin_form %}
+    <div class="card">
+      <h3>⚡ Schnellaktionen</h3>
+      {% if ticket.status != "closed" %}
+      <form method="post" action="{% url 'ticket_close' ticket.pk %}" onsubmit="return confirm('Ticket schließen und ins Archiv verschieben?')">
+        {% csrf_token %}
+        <button class="btn" type="submit" style="width:100%; margin-bottom:8px;">✓ Ticket schließen</button>
+      </form>
+      {% else %}
+      <form method="post" action="{% url 'ticket_reopen' ticket.pk %}">
+        {% csrf_token %}
+        <button class="btn secondary" type="submit" style="width:100%; margin-bottom:8px;">↺ Wieder öffnen</button>
+      </form>
+      {% endif %}
+    </div>
 
-<div class="card">
-  <h3 style="margin-top:0">Anhang hinzufügen</h3>
-  <form method="post" enctype="multipart/form-data">
-    {% csrf_token %}
-    <input type="hidden" name="action" value="attach">
-    {{ attachment_form.file }}
-    <div style="margin-top:10px;"><button class="btn secondary" type="submit">Hochladen</button></div>
-  </form>
-</div>
-
-{% if admin_form %}
-<div class="card">
-  <h3 style="margin-top:0">Admin: Ticket bearbeiten</h3>
-  <form method="post">
-    {% csrf_token %}
-    <input type="hidden" name="action" value="update">
-    <div class="row">
-      {% for field in admin_form %}
-        <div>
+    <div class="card">
+      <h3>Eigenschaften</h3>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="update">
+        {% for field in admin_form %}
           <label>{{ field.label }}</label>
           {{ field }}
           {% if field.errors %}<ul class="errorlist">{% for e in field.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
-        </div>
-      {% endfor %}
+        {% endfor %}
+        <div style="margin-top:14px;"><button class="btn" type="submit" style="width:100%;">Speichern</button></div>
+      </form>
     </div>
-    <div style="margin-top:14px;"><button class="btn" type="submit">Speichern</button></div>
-  </form>
-</div>
-{% endif %}
+    {% endif %}
 
-<div class="card">
-  <h3 style="margin-top:0">Verlauf / Kommentare</h3>
-  {% for c in ticket.comments.all %}
-    <div class="comment">
-      <div class="meta"><strong>{{ c.author.username|default:"?" }}</strong> – {{ c.created_at|date:"d.m.Y H:i" }}{% if c.author.is_staff %} <span class="badge b-medium">Admin</span>{% endif %}</div>
-      <div style="white-space:pre-wrap">{{ c.body }}</div>
+    <!-- Info für alle -->
+    <div class="card">
+      <h3>Übersicht</h3>
+      <div style="font-size:13px;">
+        <div style="margin-bottom:8px;"><span class="muted">Erstellt:</span><br>{{ ticket.created_at|date:"d.m.Y H:i" }}</div>
+        <div style="margin-bottom:8px;"><span class="muted">Letzte Änderung:</span><br>{{ ticket.updated_at|date:"d.m.Y H:i" }}</div>
+        <div style="margin-bottom:8px;"><span class="muted">Ersteller:</span><br><strong>{{ ticket.created_by.username }}</strong></div>
+        <div style="margin-bottom:8px;"><span class="muted">Bearbeiter:</span><br>{{ ticket.assigned_to.username|default:"– nicht zugewiesen –" }}</div>
+        <div><span class="muted">Status:</span><br><span class="badge b-{{ ticket.status }}">{{ ticket.get_status_display }}</span></div>
+      </div>
     </div>
-  {% empty %}
-    <p class="muted">Noch keine Kommentare.</p>
-  {% endfor %}
+  </aside>
 
-  <form method="post" style="margin-top:14px;">
-    {% csrf_token %}
-    <input type="hidden" name="action" value="comment">
-    {{ comment_form.body }}
-    {% if comment_form.body.errors %}<ul class="errorlist">{% for e in comment_form.body.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
-    <div style="margin-top:10px;"><button class="btn" type="submit">Kommentar senden</button></div>
-  </form>
 </div>
 {% endblock %}
