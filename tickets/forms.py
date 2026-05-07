@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib.auth import get_user_model
 
-from .models import Attachment, Comment, Ticket
+from .models import Attachment, Comment, Ticket, WorkLog
 
 User = get_user_model()
 
@@ -56,3 +56,14 @@ class AttachmentForm(forms.ModelForm):
     class Meta:
         model = Attachment
         fields = ["file"]
+
+
+class WorkLogForm(forms.ModelForm):
+    class Meta:
+        model = WorkLog
+        fields = ["date", "travel_km", "hours", "material", "description"]
+        widgets = {
+            "date": forms.DateInput(attrs={"type": "date"}),
+            "material": forms.Textarea(attrs={"rows": 2}),
+            "description": forms.Textarea(attrs={"rows": 3}),
+        }

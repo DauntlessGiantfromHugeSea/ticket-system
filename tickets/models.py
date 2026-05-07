@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.db import models
 from django.urls import reverse
+from django.utils import timezone
 
 
 class Ticket(models.Model):
@@ -89,3 +90,43 @@ class Comment(models.Model):
 
     def __str__(self):
         return f"Kommentar von {self.author} zu {self.ticket}"
+
+
+class WorkLog(models.Model):
+    """Aufwandserfassung pro Ticket (nur für Admins).
+
+    Trägt Anfahrt, Zeitaufwand, eingesetztes Material und eine
+    Tätigkeitsbeschreibung ein. Mehrere Einträge pro Ticket möglich.
+    """
+
+    ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name="worklogs")
+    performed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="worklogs",
+        verbose_name="Bearbeiter",
+    )
+    date = models.DateField("Datum", default=timezone.localdate)
+    travel_km = models.DecimalField(
+        "Anfahrt (km)", max_digits=7, decimal_places=1, default=0,
+        help_text="Gefahrene Kilometer (einfach oder Hin+Rück, wie ihr es handhabt).",
+    )
+    hours = models.DecimalField(
+        "Zeitaufwand (Std.)", max_digits=5, decimal_places=2, default=0,
+        help_text="Stunden, z. B. 1.5 für 1 Std 30 Min.",
+    )
+    material = models.TextField(
+        "Material", blank=True,
+        help_text="Eingesetzte Teile/Material, z. B. '1× Netzteil 65W, 2m Patchkabel'.",
+    )
+    description = models.TextField("Durchgeführte Arbeiten", blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-date", "-created_at"]
+        verbose_name = "Aufwand"
+        verbose_name_plural = "Aufwände"
+
+    def __str__(self):
+        return f"{self.date} – {self.hours}h – {self.ticket}"

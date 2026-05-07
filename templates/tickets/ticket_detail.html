@@ -44,6 +44,69 @@
   </form>
 </div>
 
+{% if worklog_form %}
+<div class="card">
+  <h3 style="margin-top:0">Aufwandserfassung (Admin)</h3>
+
+  {% if worklogs %}
+    <table>
+      <thead>
+        <tr><th>Datum</th><th>Bearbeiter</th><th>km</th><th>Std.</th><th>Material</th><th>Tätigkeit</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for w in worklogs %}
+        <tr>
+          <td>{{ w.date|date:"d.m.Y" }}</td>
+          <td>{{ w.performed_by.username|default:"–" }}</td>
+          <td>{{ w.travel_km }}</td>
+          <td>{{ w.hours }}</td>
+          <td style="white-space:pre-wrap">{{ w.material|default:"–" }}</td>
+          <td style="white-space:pre-wrap">{{ w.description|default:"–" }}</td>
+          <td>
+            <form method="post" style="display:inline" onsubmit="return confirm('Aufwand wirklich löschen?')">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="worklog_delete">
+              <input type="hidden" name="worklog_id" value="{{ w.pk }}">
+              <button class="btn danger" type="submit" style="padding:4px 8px; font-size:12px;">Löschen</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr style="font-weight:600; background:#fafbfc;">
+          <td colspan="2">Summe</td>
+          <td>{{ worklog_totals.km|default:0 }} km</td>
+          <td>{{ worklog_totals.hours|default:0 }} h</td>
+          <td colspan="3"></td>
+        </tr>
+      </tfoot>
+    </table>
+  {% else %}
+    <p class="muted">Noch kein Aufwand erfasst.</p>
+  {% endif %}
+
+  <details style="margin-top:14px;">
+    <summary style="cursor:pointer; font-weight:600;">+ Aufwand hinzufügen</summary>
+    <form method="post" style="margin-top:12px;">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="worklog_add">
+      <div class="row">
+        <div><label>{{ worklog_form.date.label }}</label>{{ worklog_form.date }}</div>
+        <div><label>{{ worklog_form.travel_km.label }}</label>{{ worklog_form.travel_km }}</div>
+        <div><label>{{ worklog_form.hours.label }}</label>{{ worklog_form.hours }}</div>
+      </div>
+      <label>{{ worklog_form.material.label }}</label>
+      {{ worklog_form.material }}
+      <div class="muted">{{ worklog_form.material.help_text }}</div>
+      <label>{{ worklog_form.description.label }}</label>
+      {{ worklog_form.description }}
+      <div style="margin-top:12px;"><button class="btn" type="submit">Aufwand speichern</button></div>
+    </form>
+  </details>
+</div>
+{% endif %}
+
 {% if admin_form %}
 <div class="card">
   <h3 style="margin-top:0">Admin: Ticket bearbeiten</h3>

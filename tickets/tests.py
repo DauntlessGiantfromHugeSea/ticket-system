@@ -2,7 +2,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 
-from .models import Comment, Ticket
+from .models import Comment, Ticket, WorkLog
 
 User = get_user_model()
 
@@ -80,6 +80,36 @@ class TicketSystemTests(TestCase):
         self.assertEqual(resp.status_code, 403)
         t.refresh_from_db()
         self.assertEqual(t.status, "open")
+
+    def test_admin_can_add_worklog(self):
+        t = Ticket.objects.create(title="X", description="x", created_by=self.user)
+        self.login("admin", "pw-admin-123!")
+        resp = self.client.post(
+            t.get_absolute_url(),
+            {
+                "action": "worklog_add",
+                "date": "2026-05-07",
+                "travel_km": "12.5",
+                "hours": "1.5",
+                "material": "1x Netzteil",
+                "description": "Tausch",
+            },
+        )
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(WorkLog.objects.count(), 1)
+        wl = WorkLog.objects.get()
+        self.assertEqual(wl.performed_by, self.admin)
+        self.assertEqual(str(wl.travel_km), "12.5")
+
+    def test_user_cannot_add_worklog(self):
+        t = Ticket.objects.create(title="X", description="x", created_by=self.user)
+        self.login("alice")
+        resp = self.client.post(
+            t.get_absolute_url(),
+            {"action": "worklog_add", "date": "2026-05-07", "travel_km": "1", "hours": "1"},
+        )
+        self.assertEqual(resp.status_code, 403)
+        self.assertEqual(WorkLog.objects.count(), 0)
 
     def test_comments(self):
         t = Ticket.objects.create(title="X", description="x", created_by=self.user)
