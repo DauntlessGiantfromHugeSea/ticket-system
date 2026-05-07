@@ -4,6 +4,7 @@ __pycache__/
 *.sqlite3-journal
 db.sqlite3
 .env
+users.json
 .venv/
 venv/
 media/

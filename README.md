@@ -32,10 +32,40 @@ python3 manage.py runserver
 
 Aufruf im Browser: <http://127.0.0.1:8000/>
 
-### Weitere User anlegen
+### User per Datei verwalten (empfohlen)
 
-Über `/admin/` → **Users** → *Add user*. Soll der User Admin-Rechte bekommen,
-das Häkchen bei **Staff status** setzen.
+Alle User stehen in `users.json` (eine Vorlage liegt als `users.example.json` bei).
+Format:
+
+```json
+[
+  { "username": "admin", "email": "a@x.de", "password": "Geheim!", "is_admin": true },
+  { "username": "max",   "email": "m@x.de", "password": "Start#1",  "is_admin": false }
+]
+```
+
+Anlegen / Aktualisieren:
+
+```bash
+cp users.example.json users.json   # einmalig
+nano users.json                    # User eintragen / Passwörter setzen
+python3 manage.py sync_users       # User in DB anlegen oder aktualisieren
+```
+
+- Felder ändern → erneut `sync_users` ausführen.
+- Passwort ändern → in der Datei setzen und `sync_users` ausführen.
+- Passwort leer lassen → bestehendes Passwort bleibt unverändert.
+- Mit `--prune` werden in der DB vorhandene, aber nicht in der Datei gelistete
+  User **deaktiviert** (gelöscht wird nichts, damit Tickets erhalten bleiben).
+
+> ⚠️ `users.json` enthält Klartext-Passwörter und ist in `.gitignore` —
+> niemals committen, Datei nur für `root` lesbar machen:
+> `chmod 600 users.json`
+
+### Alternativ: User per Web-Admin
+
+Über `/admin/` → **Users** → *Add user*. Für Admin-Rechte das Häkchen bei
+**Staff status** (und ggf. **Superuser status**) setzen.
 
 ## Konfiguration über Umgebungsvariablen
 
