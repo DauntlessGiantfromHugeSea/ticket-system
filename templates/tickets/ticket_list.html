@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Tickets{% endblock %}
+{% block content %}
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center;">
+    <h1 style="margin:0">{% if user.is_staff %}Alle Tickets{% else %}Meine Tickets{% endif %}</h1>
+    <a class="btn" href="{% url 'ticket_create' %}">+ Neues Ticket</a>
+  </div>
+  <form method="get" style="margin-top:16px">
+    <div class="row">
+      <input type="text" name="q" placeholder="Suche..." value="{{ filters.q }}">
+      <select name="status">
+        <option value="">Status (alle)</option>
+        {% for v,l in status_choices %}<option value="{{ v }}" {% if filters.status == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+      </select>
+      <select name="priority">
+        <option value="">Priorität (alle)</option>
+        {% for v,l in priority_choices %}<option value="{{ v }}" {% if filters.priority == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+      </select>
+      <select name="category">
+        <option value="">Kategorie (alle)</option>
+        {% for v,l in category_choices %}<option value="{{ v }}" {% if filters.category == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+      </select>
+      <button class="btn secondary" type="submit">Filtern</button>
+    </div>
+  </form>
+</div>
+
+<div class="card" style="padding:0">
+  <table>
+    <thead>
+      <tr><th>#</th><th>Titel</th><th>Status</th><th>Priorität</th><th>Kategorie</th><th>Erstellt von</th><th>Zugewiesen</th><th>Erstellt</th></tr>
+    </thead>
+    <tbody>
+      {% for t in tickets %}
+      <tr style="cursor:pointer" onclick="window.location='{{ t.get_absolute_url }}'">
+        <td>#{{ t.pk }}</td>
+        <td><strong>{{ t.title }}</strong></td>
+        <td><span class="badge b-{{ t.status }}">{{ t.get_status_display }}</span></td>
+        <td><span class="badge b-{{ t.priority }}">{{ t.get_priority_display }}</span></td>
+        <td>{{ t.get_category_display }}</td>
+        <td>{{ t.created_by.username }}</td>
+        <td>{{ t.assigned_to.username|default:"–" }}</td>
+        <td class="muted">{{ t.created_at|date:"d.m.Y H:i" }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="8" class="muted" style="text-align:center; padding:30px">Keine Tickets gefunden.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

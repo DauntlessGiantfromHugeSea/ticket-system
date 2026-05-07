@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Anmeldung{% endblock %}
+{% block content %}
+<div class="card" style="max-width:400px; margin:60px auto;">
+  <h1>Anmeldung</h1>
+  <p class="muted">Bitte mit Benutzernamen und Passwort anmelden. Accounts werden vom Admin erstellt.</p>
+  {% if form.errors %}<div class="alert error">Benutzername oder Passwort ungültig.</div>{% endif %}
+  <form method="post">
+    {% csrf_token %}
+    <label>Benutzername</label>
+    <input type="text" name="username" autofocus required>
+    <label>Passwort</label>
+    <input type="password" name="password" required>
+    <input type="hidden" name="next" value="{{ next }}">
+    <div style="margin-top:16px;"><button class="btn" type="submit">Anmelden</button></div>
+  </form>
+</div>
+{% endblock %}

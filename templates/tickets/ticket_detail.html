@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Ticket #{{ ticket.pk }}{% endblock %}
+{% block content %}
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px;">
+    <div>
+      <div class="muted">Ticket #{{ ticket.pk }}</div>
+      <h1 style="margin:4px 0">{{ ticket.title }}</h1>
+      <div>
+        <span class="badge b-{{ ticket.status }}">{{ ticket.get_status_display }}</span>
+        <span class="badge b-{{ ticket.priority }}">Priorität: {{ ticket.get_priority_display }}</span>
+        <span class="badge b-low">{{ ticket.get_category_display }}</span>
+      </div>
+    </div>
+    <a class="btn secondary" href="{% url 'ticket_list' %}">← Zurück</a>
+  </div>
+  <p class="muted" style="margin-top:14px">
+    Erstellt von <strong>{{ ticket.created_by.username }}</strong> am {{ ticket.created_at|date:"d.m.Y H:i" }}
+    {% if ticket.assigned_to %} · zugewiesen an <strong>{{ ticket.assigned_to.username }}</strong>{% endif %}
+  </p>
+  <hr style="border:none; border-top:1px solid var(--border); margin:14px 0">
+  <div style="white-space:pre-wrap">{{ ticket.description }}</div>
+</div>
+
+{% if ticket.attachments.all %}
+<div class="card">
+  <h3 style="margin-top:0">Anhänge</h3>
+  <ul>
+    {% for a in ticket.attachments.all %}
+      <li><a href="{{ a.file.url }}" target="_blank">{{ a.file.name|cut:"tickets/"|cut:a.ticket_id|cut:"/" }}</a>
+      <span class="muted">– {{ a.uploaded_by.username|default:"?" }}, {{ a.uploaded_at|date:"d.m.Y H:i" }}</span></li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<div class="card">
+  <h3 style="margin-top:0">Anhang hinzufügen</h3>
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="attach">
+    {{ attachment_form.file }}
+    <div style="margin-top:10px;"><button class="btn secondary" type="submit">Hochladen</button></div>
+  </form>
+</div>
+
+{% if admin_form %}
+<div class="card">
+  <h3 style="margin-top:0">Admin: Ticket bearbeiten</h3>
+  <form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="update">
+    <div class="row">
+      {% for field in admin_form %}
+        <div>
+          <label>{{ field.label }}</label>
+          {{ field }}
+          {% if field.errors %}<ul class="errorlist">{% for e in field.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+        </div>
+      {% endfor %}
+    </div>
+    <div style="margin-top:14px;"><button class="btn" type="submit">Speichern</button></div>
+  </form>
+</div>
+{% endif %}
+
+<div class="card">
+  <h3 style="margin-top:0">Verlauf / Kommentare</h3>
+  {% for c in ticket.comments.all %}
+    <div class="comment">
+      <div class="meta"><strong>{{ c.author.username|default:"?" }}</strong> – {{ c.created_at|date:"d.m.Y H:i" }}{% if c.author.is_staff %} <span class="badge b-medium">Admin</span>{% endif %}</div>
+      <div style="white-space:pre-wrap">{{ c.body }}</div>
+    </div>
+  {% empty %}
+    <p class="muted">Noch keine Kommentare.</p>
+  {% endfor %}
+
+  <form method="post" style="margin-top:14px;">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="comment">
+    {{ comment_form.body }}
+    {% if comment_form.body.errors %}<ul class="errorlist">{% for e in comment_form.body.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+    <div style="margin-top:10px;"><button class="btn" type="submit">Kommentar senden</button></div>
+  </form>
+</div>
+{% endblock %}
