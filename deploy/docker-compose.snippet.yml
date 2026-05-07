@@ -1,0 +1,43 @@
+# Diesen Service-Block in /opt/fbe-tools/docker-compose.yml unter "services:"
+# einfügen (oder den vorhandenen "tickets"-Service damit ersetzen).
+#
+# Annahmen (entsprechend Server-Setup):
+#   Repo-Pfad:    /opt/fbe-tools/tool-b
+#   Datenordner:  /opt/fbe-tools/ticket-data  (enthält db.sqlite3 + media/)
+#   Caddy-Netz:   gemeinsames Netz mit fbe-caddy
+#   Domain:       ticket.rss-fb.com
+
+services:
+  tickets:
+    container_name: tickets
+    build:
+      context: ./tool-b
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    expose:
+      - "8001"
+    volumes:
+      - ./ticket-data:/data
+    environment:
+      DATA_DIR: /data
+      DJANGO_DEBUG: "False"
+      DJANGO_SECRET_KEY: "BITTE-LANGEN-ZUFALLSSTRING-EINSETZEN"
+      DJANGO_ALLOWED_HOSTS: "ticket.rss-fb.com"
+      CSRF_TRUSTED_ORIGINS: "https://ticket.rss-fb.com"
+
+      # Bootstrap-Admin (wird nur beim ersten Start angelegt, falls noch kein Admin existiert)
+      BOOTSTRAP_ADMIN_USERNAME: "admin"
+      BOOTSTRAP_ADMIN_PASSWORD: "admin"
+      BOOTSTRAP_ADMIN_EMAIL: "admin@fb-eng.de"
+
+      # SMTP optional – ohne EMAIL_HOST landen Mails im Container-Log
+      # EMAIL_HOST: "smtp.deinprovider.de"
+      # EMAIL_PORT: "587"
+      # EMAIL_HOST_USER: "ticketsystem@fb-eng.de"
+      # EMAIL_HOST_PASSWORD: "geheim"
+      # EMAIL_USE_TLS: "True"
+      # DEFAULT_FROM_EMAIL: "ticketsystem@fb-eng.de"
+    # An das gleiche Netzwerk wie Caddy hängen, damit der Reverse-Proxy
+    # den Container über den Servicenamen erreicht. Netznamen ggf. anpassen.
+    # networks:
+    #   - default

@@ -1,0 +1,18 @@
+# In /opt/fbe-tools/Caddyfile diesen Block einfügen.
+# Caddy holt das HTTPS-Zertifikat automatisch von Let's Encrypt.
+
+ticket.rss-fb.com {
+    encode zstd gzip
+
+    # Statische Files werden von WhiteNoise innerhalb des Containers ausgeliefert,
+    # Medien (Uploads) auch. Caddy reicht alles direkt durch.
+    reverse_proxy tickets:8001 {
+        header_up X-Forwarded-Proto {scheme}
+        header_up X-Real-IP {remote}
+    }
+
+    # Größere Uploads zulassen (Anhänge bis 25 MB)
+    request_body {
+        max_size 25MB
+    }
+}
