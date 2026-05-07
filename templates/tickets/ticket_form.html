@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Neues Ticket{% endblock %}
+{% block content %}
+<div class="card" style="max-width:700px; margin:0 auto;">
+  <h1>Neues Ticket erstellen</h1>
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    {% for field in form %}
+      <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+      {{ field }}
+      {% if field.errors %}<ul class="errorlist">{% for e in field.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+      {% if field.help_text %}<div class="muted">{{ field.help_text }}</div>{% endif %}
+    {% endfor %}
+    <div style="margin-top:20px;">
+      <button class="btn" type="submit">Ticket erstellen</button>
+      <a class="btn secondary" href="{% url 'ticket_list' %}">Abbrechen</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
