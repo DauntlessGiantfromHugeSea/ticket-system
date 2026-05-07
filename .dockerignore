@@ -1,0 +1,16 @@
+__pycache__
+*.pyc
+*.pyo
+.git
+.gitignore
+.venv
+venv
+db.sqlite3
+db.sqlite3-journal
+media
+staticfiles
+.env
+users.json
+*.md
+deploy/
+deploy.sh

@@ -1,157 +1,169 @@
-# IT-Ticketsystem
+# IT-Ticketsystem · FB Engineering
 
-Ein einfaches, stabiles IT-Ticketsystem auf Basis von **Django 5**.
-User können sich mit Benutzername + Passwort anmelden und Tickets eröffnen.
-Admins sehen alle Tickets, können sie bearbeiten, zuweisen, kommentieren und
-den Status ändern.
+Django-basiertes IT-Ticketsystem (Branding `#92c57a` + FBE-Logo, Freshdesk-Stil).
+Läuft auf dem VPS als Docker-Container hinter Caddy.
+
+- **URL:** <https://ticket.rss-fb.com>
+- **Admin-Panel:** <https://ticket.rss-fb.com/admin/>
+- **Container:** `tickets` (intern Port `8001`)
+- **Repo-Pfad auf dem VPS:** `/opt/fbe-tools/tool-b`
+- **Persistenter Datenordner:** `/opt/fbe-tools/ticket-data` (enthält `db.sqlite3` + `media/`)
 
 ## Features
 
-- Login per Benutzername + Passwort (Accounts werden vom Admin erstellt)
+- Login per Benutzername+Passwort, Accounts werden vom Admin angelegt
+- User sehen nur eigene Tickets, Admins sehen alles
 - Tickets: Titel, Beschreibung, Priorität, Kategorie, Datei-Anhänge
-- Status-Workflow: Offen → In Arbeit → Gelöst → Geschlossen
-- Kommentare zwischen User & Admin
-- Ticket-Zuweisung an Admins
-- E-Mail-Benachrichtigungen (Konsole oder SMTP)
-- Filter & Suche
-- Eingebautes Django-Admin-Panel unter `/admin/`
-- **Bootstrap-Admin**: beim ersten Setup wird automatisch ein Admin angelegt
-- Produktions-tauglich: WhiteNoise (Static-Files), HSTS, sichere Cookies bei `DEBUG=False`
+- Status-Workflow: Offen → In Arbeit → Gelöst → Geschlossen, mit **Archiv**
+- Großer **Schließen-Button** für Admins (mit „Wieder öffnen" im Archiv)
+- **Aufwandserfassung** pro Ticket (Datum, km, Std., Material, Tätigkeit) mit Summenzeile
+- Kommentare/Conversation im Freshdesk-Stil (mit Avataren, Admin farblich hervorgehoben)
+- Prominente Ersteller-Box oben (Name, E-Mail, Datum)
+- E-Mail-Benachrichtigungen (asynchron, blockiert nicht den Save)
+- Bootstrap-Admin beim ersten Start automatisch (`admin` / `admin`)
+- WhiteNoise für stabile Static-Files
+- HSTS + sichere Cookies bei `DEBUG=False`
 
 ---
 
-## Schnellstart auf dem VPS
+## Erstes Aufsetzen auf dem VPS
+
+### 1. Repo klonen
 
 ```bash
-git clone <repo-url> ticket-system
-cd ticket-system
-cp .env.example .env
-nano .env                      # Domain, Secret-Key, ggf. Admin-Passwort anpassen
-./deploy.sh                    # installiert alles und legt Bootstrap-Admin an
+mkdir -p /opt/fbe-tools/ticket-data
+cd /opt/fbe-tools
+git clone https://github.com/DauntlessGiantfromHugeSea/ticket-system.git tool-b
 ```
 
-Beim ersten Lauf wird ein Admin-Account angelegt (Default: `admin` / `admin`,
-sofern in `.env` nicht überschrieben). Das ausgegebene Passwort steht im Output
-von `deploy.sh`.
+### 2. Service in `docker-compose.yml` eintragen
 
-**Sofort nach dem ersten Login** unter `/admin/` → **Users** → `admin`:
-- Passwort ändern **oder**
-- den Account löschen, nachdem du dir einen eigenen Admin angelegt hast.
+Inhalt aus `tool-b/deploy/docker-compose.snippet.yml` in
+`/opt/fbe-tools/docker-compose.yml` unter `services:` einfügen.
+**Wichtig:** `DJANGO_SECRET_KEY` durch einen langen Zufallsstring ersetzen
+(z. B. `openssl rand -base64 50`).
 
-Server starten:
+### 3. Caddy-Block einfügen
+
+Inhalt aus `tool-b/deploy/Caddyfile.snippet` in `/opt/fbe-tools/Caddyfile` einfügen.
+
+### 4. DNS prüfen
+
 ```bash
-source .venv/bin/activate
-gunicorn --workers 3 --bind 0.0.0.0:8000 ticketsystem.wsgi:application
+dig +short ticket.rss-fb.com    # → 202.61.227.170
 ```
 
-Für Produktion: `deploy/ticketsystem.service` (systemd) und `deploy/nginx.conf`
-in das System kopieren — siehe [Produktions-Setup](#produktions-setup).
+### 5. Starten
+
+```bash
+cd /opt/fbe-tools
+docker compose up -d --build tickets
+docker compose restart fbe-caddy
+```
+
+### 6. Login
+
+<https://ticket.rss-fb.com/login/> — mit `admin` / `admin` einloggen, dann
+**sofort** unter `/admin/` Passwort ändern oder Account löschen.
 
 ---
 
-## Lokale Entwicklung
+## Update einspielen
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-./deploy.sh
-python manage.py runserver
+cd /opt/fbe-tools/tool-b
+git fetch origin
+git reset --hard origin/main
+git clean -fd
+
+cd /opt/fbe-tools
+docker compose up -d --build tickets
+docker compose logs --tail=100 tickets
 ```
 
-Browser: <http://127.0.0.1:8000/>
-Login: `admin` / `admin`
+Datenbank (`/opt/fbe-tools/ticket-data/db.sqlite3`) bleibt erhalten —
+liegt außerhalb des Containers/Repos. Migrationen laufen automatisch beim Start.
+
+---
+
+## Backups
+
+```cron
+0 3 * * * tar czf /opt/fbe-tools/backups/ticket-$(date +\%F).tgz -C /opt/fbe-tools ticket-data
+0 4 * * 0 find /opt/fbe-tools/backups -name 'ticket-*.tgz' -mtime +30 -delete
+```
+
+```bash
+mkdir -p /opt/fbe-tools/backups
+```
 
 ---
 
 ## User verwalten
 
-### Variante A: über `/admin/` (empfohlen für wenige User)
+### Variante A — über `/admin/` (empfohlen für wenige User)
+**Users → Add user**, danach für Admin-Rechte das Häkchen bei **Staff status** (und ggf. **Superuser status**) setzen.
 
-**Users** → *Add user*. Häkchen bei **Staff status** = Admin-Rechte fürs Ticket-System.
-
-### Variante B: über `users.json` (empfohlen für viele User)
+### Variante B — über `users.json` (für viele User)
 
 ```bash
-cp users.example.json users.json
-nano users.json                       # User eintragen
-chmod 600 users.json
-python manage.py sync_users           # User in DB übernehmen
-python manage.py sync_users --prune   # nicht-gelistete User deaktivieren
+cd /opt/fbe-tools/tool-b
+cp users.example.json /opt/fbe-tools/ticket-data/users.json
+nano /opt/fbe-tools/ticket-data/users.json
+chmod 600 /opt/fbe-tools/ticket-data/users.json
+
+docker compose exec tickets python manage.py sync_users \
+    --file /data/users.json
 ```
 
-`users.json` ist gitignored (enthält Klartext-Passwörter).
+`users.json` ist gitignored und wird im persistenten Datenordner abgelegt.
 
 ---
 
-## Konfiguration (`.env`)
+## Konfiguration (Container-Env-Variablen)
 
 | Variable | Default | Bedeutung |
-|----------|---------|-----------|
-| `DJANGO_SECRET_KEY` | dev-Key | **In Produktion zwingend setzen** |
-| `DJANGO_DEBUG` | `True` | In Produktion auf `False` |
-| `DJANGO_ALLOWED_HOSTS` | `*` | z. B. `tickets.deinedomain.de` |
-| `CSRF_TRUSTED_ORIGINS` | – | z. B. `https://tickets.deinedomain.de` |
-| `BOOTSTRAP_ADMIN_USERNAME` | `admin` | Auto-Admin Username |
-| `BOOTSTRAP_ADMIN_PASSWORD` | `admin` | Auto-Admin Passwort |
-| `BOOTSTRAP_ADMIN_EMAIL` | `admin@example.com` | Auto-Admin E-Mail |
-| `BOOTSTRAP_ADMIN_DISABLED` | – | Auf `1` setzen, um Bootstrap zu deaktivieren |
-| `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS` | – | SMTP-Konfiguration |
-| `DEFAULT_FROM_EMAIL` | `ticketsystem@example.com` | Absender |
+|---|---|---|
+| `DATA_DIR` | `/data` | Persistenter Ordner für DB + Media |
+| `DJANGO_SECRET_KEY` | – | **Zwingend selbst setzen** |
+| `DJANGO_DEBUG` | `True` | In Produktion `False` |
+| `DJANGO_ALLOWED_HOSTS` | `*` | `ticket.rss-fb.com` |
+| `CSRF_TRUSTED_ORIGINS` | – | `https://ticket.rss-fb.com` |
+| `BOOTSTRAP_ADMIN_USERNAME` / `_PASSWORD` / `_EMAIL` | `admin` / `admin` / … | Auto-Admin beim ersten Start |
+| `BOOTSTRAP_ADMIN_DISABLED` | – | Auf `1` zum Deaktivieren |
+| `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS` | – | SMTP (sonst Console-Backend) |
+| `GUNICORN_WORKERS` | `3` | Anzahl Worker-Prozesse |
 
 ---
 
-## Produktions-Setup
+## Lokale Entwicklung (ohne Docker)
 
-### 1. Mit `deploy.sh` aufsetzen
 ```bash
-./deploy.sh
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+python manage.py migrate
+python manage.py runserver
 ```
 
-### 2. systemd-Service installieren
-```bash
-sudo cp deploy/ticketsystem.service /etc/systemd/system/
-sudo nano /etc/systemd/system/ticketsystem.service   # Pfade/User anpassen
-sudo systemctl daemon-reload
-sudo systemctl enable --now ticketsystem
-sudo systemctl status ticketsystem
-```
-
-### 3. Nginx als Reverse-Proxy
-```bash
-sudo cp deploy/nginx.conf /etc/nginx/sites-available/ticketsystem
-sudo nano /etc/nginx/sites-available/ticketsystem    # Domain anpassen
-sudo ln -s /etc/nginx/sites-available/ticketsystem /etc/nginx/sites-enabled/
-sudo nginx -t && sudo systemctl reload nginx
-```
-
-### 4. HTTPS mit Let's Encrypt
-```bash
-sudo apt install certbot python3-certbot-nginx
-sudo certbot --nginx -d tickets.deinedomain.de
-```
-
-### 5. Update einspielen
-```bash
-git pull
-./deploy.sh
-sudo systemctl restart ticketsystem
-```
-
----
-
-## Backup
-
-```cron
-# Täglich 03:00 Uhr DB + Uploads sichern, alte Backups löschen
-0 3 * * * tar czf ~/backup-$(date +\%F).tgz -C ~/ticket-system db.sqlite3 media/
-0 4 * * 0 find ~ -maxdepth 1 -name 'backup-*.tgz' -mtime +30 -delete
-```
-
----
+→ <http://127.0.0.1:8000/> · Login `admin` / `admin`
 
 ## Tests
 
 ```bash
 python manage.py test
 ```
+
+oder im Container:
+
+```bash
+docker compose exec tickets python manage.py test
+```
+
+---
+
+## Wichtig
+
+> ⚠ **Niemals löschen:** `/opt/fbe-tools/ticket-data/db.sqlite3`
+> Enthält alle User, Tickets, Kommentare und WorkLogs.

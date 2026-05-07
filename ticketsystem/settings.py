@@ -4,6 +4,12 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# DATA_DIR enthält die SQLite-DB und hochgeladene Dateien.
+# Im Docker-Container wird /data als Volume gemountet (host: /opt/fbe-tools/ticket-data).
+# Lokal fällt es auf BASE_DIR zurück.
+DATA_DIR = Path(os.environ.get("DATA_DIR", BASE_DIR))
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+
 
 def _env_bool(name, default):
     return os.environ.get(name, str(default)).lower() in ("1", "true", "yes")
@@ -71,7 +77,7 @@ WSGI_APPLICATION = "ticketsystem.wsgi.application"
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+        "NAME": DATA_DIR / "db.sqlite3",
         "OPTIONS": {"timeout": 20},
     }
 }
@@ -93,7 +99,7 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 MEDIA_URL = "media/"
-MEDIA_ROOT = BASE_DIR / "media"
+MEDIA_ROOT = DATA_DIR / "media"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
